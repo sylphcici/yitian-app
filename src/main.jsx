@@ -30,9 +30,9 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import rainyCommute from './assets/rainy-commute.png';
-import yongqingfangAfterRain from './assets/yongqingfang-after-rain.png';
-import dongshankouTheatre from './assets/dongshankou-theatre.png';
+import rainyCommute from './assets/rainy-commute.webp';
+import yongqingfangAfterRain from './assets/yongqingfang-after-rain.webp';
+import dongshankouTheatre from './assets/dongshankou-theatre.webp';
 import './styles.css';
 import { databaseEnabled, supabase } from './lib/supabase';
 import {
@@ -505,7 +505,7 @@ function MomentImages({ moment, className = 'moment-gallery' }) {
   return (
     <div className={`${className} ${images.length > 1 ? 'multiple' : ''}`}>
       <div className="gallery-track" ref={trackRef} onScroll={(event) => setActiveIndex(Math.round(event.currentTarget.scrollLeft / event.currentTarget.clientWidth))}>
-        {images.map((src, index) => <img key={`${src.slice(0, 40)}-${index}`} src={src} alt={`${moment.imageAlt || '此刻的配图'}${images.length > 1 ? ` ${index + 1}` : ''}`} />)}
+        {images.map((src, index) => <img key={`${src.slice(0, 40)}-${index}`} src={src} loading="lazy" decoding="async" alt={`${moment.imageAlt || '此刻的配图'}${images.length > 1 ? ` ${index + 1}` : ''}`} />)}
       </div>
       {images.length > 1 && <>
         <span className="gallery-count">{activeIndex + 1}/{images.length}</span>
