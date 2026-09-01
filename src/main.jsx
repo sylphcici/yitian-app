@@ -58,7 +58,9 @@ let stableViewportHeight = window.visualViewport?.height || window.innerHeight;
 function syncViewportHeight() {
   const viewportHeight = window.visualViewport?.height || window.innerHeight;
   if (viewportHeight > stableViewportHeight) stableViewportHeight = viewportHeight;
-  const keyboardVisible = window.innerWidth < 700 && viewportHeight < stableViewportHeight * 0.78;
+  const activeElement = document.activeElement;
+  const textInputFocused = activeElement?.matches?.('input:not([type="button"]):not([type="checkbox"]):not([type="radio"]), textarea, [contenteditable="true"]');
+  const keyboardVisible = window.innerWidth < 700 && (viewportHeight < stableViewportHeight * 0.88 || textInputFocused);
   document.documentElement.style.setProperty('--app-height', `${Math.round(viewportHeight)}px`);
   document.documentElement.classList.toggle('keyboard-visible', keyboardVisible);
 }
@@ -72,6 +74,8 @@ syncViewportHeight();
 window.addEventListener('resize', syncViewportHeight);
 window.addEventListener('orientationchange', () => window.setTimeout(resetViewportHeight, 180));
 window.visualViewport?.addEventListener('resize', syncViewportHeight);
+document.addEventListener('focusin', syncViewportHeight);
+document.addEventListener('focusout', () => window.setTimeout(syncViewportHeight, 80));
 
 function getLocalProfile(userId) {
   try {
