@@ -1002,8 +1002,6 @@ function ProfileView({ onCompose, onEditDraft, toast, drafts, onDeleteDraft, sta
     setSavingProfile(true);
     try {
       const savedAvatar = await saveProfileToDatabase({ nickname: nextProfile.name, signature: nextProfile.signature, avatarSource: nextProfile.avatar, existingAvatarPath: nextProfile.avatarPath });
-      const { error: authError } = await supabase.auth.updateUser({ data: { ...currentUser.user_metadata, nickname: nextProfile.name } });
-      if (authError) throw authError;
       const syncedProfile = { ...nextProfile, avatar: savedAvatar.avatarUrl, avatarPath: savedAvatar.avatarPath };
       setProfile(syncedProfile);
       localStorage.setItem(`yitian-profile:${currentUser.id}`, JSON.stringify(syncedProfile));
@@ -2373,7 +2371,6 @@ function Root() {
         return;
       }
       const nickname = user.user_metadata?.nickname;
-      if (nickname) await supabase.from('profiles').update({ nickname, avatar_text: nickname.slice(0, 1) }).eq('id', user.id);
       let { data: databaseProfile, error: profileError } = await supabase.from('profiles').select('nickname, signature, avatar_url').eq('id', user.id).maybeSingle();
       if (profileError && /signature/i.test(`${profileError.message} ${profileError.details || ''}`)) {
         const fallbackProfile = await supabase.from('profiles').select('nickname, avatar_url').eq('id', user.id).maybeSingle();
