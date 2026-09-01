@@ -2381,9 +2381,16 @@ function Root() {
       }
       const localProfileKey = `yitian-profile:${user.id}`;
       const existingLocalProfile = JSON.parse(window.localStorage.getItem(localProfileKey) || 'null');
+      const defaultSignature = '记录今天，也收藏自己';
+      const localSignature = existingLocalProfile?.signature;
+      let resolvedSignature = databaseProfile?.signature || localSignature || defaultSignature;
+      if (databaseProfile?.signature === defaultSignature && localSignature && localSignature !== defaultSignature) {
+        const { error: signatureMigrationError } = await supabase.from('profiles').update({ signature: localSignature }).eq('id', user.id);
+        if (!signatureMigrationError) resolvedSignature = localSignature;
+      }
       window.localStorage.setItem(localProfileKey, JSON.stringify({
         name: databaseProfile?.nickname || nickname || existingLocalProfile?.name || '一天用户',
-        signature: databaseProfile?.signature || existingLocalProfile?.signature || '记录今天，也收藏自己',
+        signature: resolvedSignature,
         avatar: getProfileAvatarUrl(databaseProfile?.avatar_url) || existingLocalProfile?.avatar || '',
         avatarPath: databaseProfile?.avatar_url || existingLocalProfile?.avatarPath || '',
       }));
