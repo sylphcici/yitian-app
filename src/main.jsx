@@ -47,6 +47,7 @@ import {
 } from './services/moments';
 import { loadReplyThreads, markDatabaseThreadRead, sendDatabaseReply } from './services/replies';
 import { getProfileAvatarUrl, saveProfileToDatabase } from './services/profile';
+import { loadDatabaseDrafts, saveDatabaseDrafts } from './services/drafts';
 import { deleteRecommendationFeedback, loadRecommendationFeedback, saveRecommendationFeedback } from './services/feedback';
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -1000,7 +1001,7 @@ function ProfileView({ onCompose, onEditDraft, toast, drafts, onDeleteDraft, sta
     if (!nextProfile.name || savingProfile) return;
     setSavingProfile(true);
     try {
-      const savedAvatar = await saveProfileToDatabase({ nickname: nextProfile.name, avatarSource: nextProfile.avatar, existingAvatarPath: nextProfile.avatarPath });
+      const savedAvatar = await saveProfileToDatabase({ nickname: nextProfile.name, signature: nextProfile.signature, avatarSource: nextProfile.avatar, existingAvatarPath: nextProfile.avatarPath });
       const { error: authError } = await supabase.auth.updateUser({ data: { ...currentUser.user_metadata, nickname: nextProfile.name } });
       if (authError) throw authError;
       const syncedProfile = { ...nextProfile, avatar: savedAvatar.avatarUrl, avatarPath: savedAvatar.avatarPath };
@@ -1692,6 +1693,35 @@ function App({ currentUser, onSignOut }) {
   });
   const scrollAreaRef = useRef(null);
   useEffect(() => {
+    if (!databaseEnabled) return undefined;
+    let cancelled = false;
+    const localKey = storageKey('yitian-drafts');
+    const migrationKey = storageKey('yitian-drafts-cloud-migrated');
+    loadDatabaseDrafts()
+      .then(async ({ drafts: databaseDrafts }) => {
+        if (cancelled) return;
+        let nextDrafts = databaseDrafts;
+        if (window.localStorage.getItem(migrationKey) !== '1') {
+          const localDrafts = JSON.parse(window.localStorage.getItem(localKey) || '[]');
+          const draftsById = new Map(databaseDrafts.map((draft) => [draft.id, draft]));
+          localDrafts.forEach((draft) => {
+            const remote = draftsById.get(draft.id);
+            if (!remote || new Date(draft.savedAt || 0) > new Date(remote.savedAt || 0)) draftsById.set(draft.id, draft);
+          });
+          nextDrafts = [...draftsById.values()]
+            .sort((a, b) => new Date(b.savedAt || 0) - new Date(a.savedAt || 0))
+            .slice(0, 10);
+          if (localDrafts.length) await saveDatabaseDrafts(nextDrafts);
+          window.localStorage.setItem(migrationKey, '1');
+        }
+        if (cancelled) return;
+        setSavedDrafts(nextDrafts);
+        window.localStorage.setItem(localKey, JSON.stringify(nextDrafts));
+      })
+      .catch((error) => console.error('加载云端草稿失败，继续使用本地草稿', error));
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
     scrollAreaRef.current?.scrollTo({ top: 0 });
   }, [tab]);
   useEffect(() => {
@@ -2068,6 +2098,7 @@ function App({ currentUser, onSignOut }) {
       setSavedDrafts((current) => {
         const next = current.filter((draft) => draft.id !== activeDraftId);
         window.localStorage.setItem(storageKey('yitian-drafts'), JSON.stringify(next));
+        if (databaseEnabled) saveDatabaseDrafts(next).catch((error) => console.error('清理云端草稿失败', error));
         return next;
       });
       setActiveDraftId(null);
@@ -2148,6 +2179,7 @@ function App({ currentUser, onSignOut }) {
     setSavedDrafts((current) => {
       const next = [nextDraft, ...current.filter((draft) => draft.id !== id)];
       window.localStorage.setItem(storageKey('yitian-drafts'), JSON.stringify(next));
+      if (databaseEnabled) saveDatabaseDrafts(next).catch((error) => { console.error('保存云端草稿失败', error); toast('草稿已保存在本机，云端同步失败'); });
       return next;
     });
     setActiveDraftId(null);
@@ -2159,6 +2191,7 @@ function App({ currentUser, onSignOut }) {
     setSavedDrafts((current) => {
       const next = current.filter((draft) => draft.id !== draftId);
       window.localStorage.setItem(storageKey('yitian-drafts'), JSON.stringify(next));
+      if (databaseEnabled) saveDatabaseDrafts(next).catch((error) => { console.error('删除云端草稿失败', error); toast('本机草稿已删除，云端同步失败'); });
       return next;
     });
     if (activeDraftId === draftId) setActiveDraftId(null);
@@ -2341,12 +2374,16 @@ function Root() {
       }
       const nickname = user.user_metadata?.nickname;
       if (nickname) await supabase.from('profiles').update({ nickname, avatar_text: nickname.slice(0, 1) }).eq('id', user.id);
-      const { data: databaseProfile } = await supabase.from('profiles').select('nickname, avatar_url').eq('id', user.id).maybeSingle();
+      let { data: databaseProfile, error: profileError } = await supabase.from('profiles').select('nickname, signature, avatar_url').eq('id', user.id).maybeSingle();
+      if (profileError && /signature/i.test(`${profileError.message} ${profileError.details || ''}`)) {
+        const fallbackProfile = await supabase.from('profiles').select('nickname, avatar_url').eq('id', user.id).maybeSingle();
+        databaseProfile = fallbackProfile.data;
+      }
       const localProfileKey = `yitian-profile:${user.id}`;
       const existingLocalProfile = JSON.parse(window.localStorage.getItem(localProfileKey) || 'null');
       window.localStorage.setItem(localProfileKey, JSON.stringify({
         name: databaseProfile?.nickname || nickname || existingLocalProfile?.name || '一天用户',
-        signature: existingLocalProfile?.signature || '记录今天，也收藏自己',
+        signature: databaseProfile?.signature || existingLocalProfile?.signature || '记录今天，也收藏自己',
         avatar: getProfileAvatarUrl(databaseProfile?.avatar_url) || existingLocalProfile?.avatar || '',
         avatarPath: databaseProfile?.avatar_url || existingLocalProfile?.avatarPath || '',
       }));

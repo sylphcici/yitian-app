@@ -6,7 +6,7 @@ export function getProfileAvatarUrl(path) {
   return supabase.storage.from('profile-avatars').getPublicUrl(path).data.publicUrl;
 }
 
-export async function saveProfileToDatabase({ nickname, avatarSource, existingAvatarPath }) {
+export async function saveProfileToDatabase({ nickname, signature, avatarSource, existingAvatarPath }) {
   const user = await ensureSession();
   let avatarPath = existingAvatarPath || null;
 
@@ -25,12 +25,20 @@ export async function saveProfileToDatabase({ nickname, avatarSource, existingAv
     if (previousPath && previousPath !== avatarPath) await supabase.storage.from('profile-avatars').remove([previousPath]);
   }
 
-  const { error } = await supabase.from('profiles').update({
+  const profileChanges = {
     nickname,
+    signature,
     avatar_text: nickname.slice(0, 1),
     avatar_url: avatarPath,
-  }).eq('id', user.id);
-  if (error) throw error;
+  };
+  const { error } = await supabase.from('profiles').update(profileChanges).eq('id', user.id);
+  if (error && /signature/i.test(`${error.message} ${error.details || ''}`)) {
+    const { signature: _signature, ...legacyChanges } = profileChanges;
+    const { error: legacyError } = await supabase.from('profiles').update(legacyChanges).eq('id', user.id);
+    if (legacyError) throw legacyError;
+  } else if (error) {
+    throw error;
+  }
 
   return { avatarPath, avatarUrl: getProfileAvatarUrl(avatarPath) };
 }
