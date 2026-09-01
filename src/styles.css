@@ -283,6 +283,10 @@ h1 { margin: 0; font-size: 24px; line-height: 1.3; letter-spacing: 0; }
 .toast { position: absolute; z-index: 30; left: 50%; bottom: calc(92px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: max-content; max-width: calc(100% - 44px); padding: 10px 14px; color: white; background: rgba(31, 35, 31, .92); border-radius: 4px; font-size: 11px; box-shadow: 0 8px 22px rgba(0,0,0,.18); animation: toast-in .2s ease; }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
 
+.keyboard-visible .bottom-nav { display: none; }
+.keyboard-visible .view { padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+.keyboard-visible .toast { bottom: calc(16px + env(safe-area-inset-bottom)); }
+
 @media (min-width: 700px) {
   body { padding: 24px 0; }
   .app-shell { height: calc(100dvh - 48px); border-radius: 12px; }
@@ -298,9 +302,6 @@ h1 { margin: 0; font-size: 24px; line-height: 1.3; letter-spacing: 0; }
 
 @media (max-width: 699px) {
   .gallery-arrow { display: none; }
-  .keyboard-visible .bottom-nav { display: none; }
-  .keyboard-visible .view { padding-bottom: max(20px, env(safe-area-inset-bottom)); }
-  .keyboard-visible .toast { bottom: calc(16px + env(safe-area-inset-bottom)); }
   .composer-head.keyboard-active { grid-template-columns: 42px 1fr auto; }
   .composer-head-actions { display: flex; align-items: center; gap: 7px; }
   .composer-head-actions button { height: 32px; padding: 0 11px; border: 0; border-radius: 4px; background: #ecece7; color: #626760; font-size: 10px; white-space: nowrap; }

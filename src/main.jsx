@@ -60,7 +60,7 @@ function syncViewportHeight() {
   if (viewportHeight > stableViewportHeight) stableViewportHeight = viewportHeight;
   const activeElement = document.activeElement;
   const textInputFocused = activeElement?.matches?.('input:not([type="button"]):not([type="checkbox"]):not([type="radio"]), textarea, [contenteditable="true"]');
-  const keyboardVisible = window.innerWidth < 700 && (viewportHeight < stableViewportHeight * 0.88 || textInputFocused);
+  const keyboardVisible = Boolean(textInputFocused) || (window.innerWidth < 700 && viewportHeight < stableViewportHeight * 0.88);
   document.documentElement.style.setProperty('--app-height', `${Math.round(viewportHeight)}px`);
   document.documentElement.classList.toggle('keyboard-visible', keyboardVisible);
 }
